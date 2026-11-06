@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
@@ -475,19 +476,23 @@
 
     <!-- 
         =====================================================================
-        ====== অ্যাড নেটওয়ার্কের SDK বসানোর জায়গা (প্রথম অংশ) ======
+        ====== নতুন অ্যাড নেটওয়ার্কের SDK (Zone ID: 12203483) ======
         =====================================================================
-        এখানে আপনার পছন্দের অ্যাড নেটওয়ার্কের দেওয়া <script> ট্যাগটি বসাতে হবে।
-        নিচের লাইনটি একটি উদাহরণ মাত্র। আপনি এটিকে পরিবর্তন করে আপনার নিজের কোড বসাবেন।
     -->
-    <script src='//libtl.com/sdk.js' data-zone='9702412' data-sdk='show_9702412'></script>
+    <script src='//libtl.com/sdk.js' data-zone='12203483' data-sdk='show_12203483'></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            const userData = tg.initDataUnsafe.user;
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                try {
+                    tg.ready();
+                    tg.expand();
+                } catch(e) {
+                    console.log('Telegram SDK init:', e);
+                }
+            }
+            const userData = tg?.initDataUnsafe?.user;
             const defaultProfilePic40 = 'https://via.placeholder.com/40';
             const defaultProfilePic80 = 'https://via.placeholder.com/80';
 
@@ -509,23 +514,19 @@
             }
 
             function updateUI() {
-                const earnings = parseFloat(localStorage.getItem('earnings'));
-                const adsWatched = parseInt(localStorage.getItem('adsWatched'));
-                const referrals = parseInt(localStorage.getItem('totalReferrals'));
+                const earnings = parseFloat(localStorage.getItem('earnings') || '0');
+                const adsWatched = parseInt(localStorage.getItem('adsWatched') || '0', 10);
+                const referrals = parseInt(localStorage.getItem('totalReferrals') || '0', 10);
 
                 const formattedEarnings = earnings.toFixed(2);
 
-                if(userData) {
+                if (userData) {
                     const fullName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim();
                     document.getElementById('header-user-name').textContent = fullName || 'User';
                     document.getElementById('profile-user-name').textContent = fullName || 'User';
                     document.getElementById('profile-user-username').textContent = userData.username ? `@${userData.username}` : 'No username';
                     
-                    // ======================================================================
-                    // ====== প্রোফাইল ছবি দেখানোর কোড (CORS সমস্যার সমাধানসহ) ======
-                    // ======================================================================
                     if (userData.photo_url) {
-                        // টেলিগ্রামের CORS পলিসি এড়ানোর জন্য একটি প্রক্সি ব্যবহার করা হয়েছে।
                         const proxyUrl = 'https://api.allorigins.win/raw?url=';
                         const proxiedPhotoUrl = `${proxyUrl}${encodeURIComponent(userData.photo_url)}`;
                         
@@ -550,12 +551,20 @@
                 
                 watchAdBtn.disabled = adsWatched >= DAILY_ADS_LIMIT;
                 watchAdBtn.querySelector('span').textContent = adsWatched >= DAILY_ADS_LIMIT ? 'cancel' : 'play_circle_filled';
-                if(adsWatched >= DAILY_ADS_LIMIT) watchAdBtn.childNodes[0].nodeValue = "দৈনিক সীমা পৌঁছে গেছে ";
+                if (adsWatched >= DAILY_ADS_LIMIT) {
+                    watchAdBtn.childNodes[0].nodeValue = "দৈনিক সীমা পৌঁছে গেছে ";
+                } else {
+                    watchAdBtn.childNodes[0].nodeValue = "বিজ্ঞাপন দেখুন ও আয় করুন ";
+                }
 
                 // Update Withdraw Page
                 document.getElementById('withdraw-balance-display').textContent = `BDT ${formattedEarnings}`;
                 document.getElementById('submit-withdraw-btn').disabled = earnings < MIN_WITHDRAW_AMOUNT;
-                if(earnings < MIN_WITHDRAW_AMOUNT) document.getElementById('submit-withdraw-btn').textContent = `ন্যূনতম BDT ${MIN_WITHDRAW_AMOUNT} প্রয়োজন`;
+                if (earnings < MIN_WITHDRAW_AMOUNT) {
+                    document.getElementById('submit-withdraw-btn').textContent = `ন্যূনতম BDT ${MIN_WITHDRAW_AMOUNT} প্রয়োজন`;
+                } else {
+                    document.getElementById('submit-withdraw-btn').textContent = `Submit Withdraw Request`;
+                }
 
                 // Update Profile Page
                 document.getElementById('profile-balance').textContent = `BDT ${formattedEarnings}`;
@@ -582,37 +591,50 @@
             startEarningBtn.addEventListener('click', () => showPage('earn-page'));
             withdrawBtn.addEventListener('click', () => showPage('withdraw-page'));
             
+            // ======================================================================
+            // নতুন Rewarded Popup (show_12203483('pop')) কল করার লজিক
+            // ======================================================================
             watchAdBtn.addEventListener('click', () => {
-                if (parseInt(localStorage.getItem('adsWatched')) >= DAILY_ADS_LIMIT) {
-                    tg.showAlert('আপনার দৈনিক বিজ্ঞাপনের সীমা পৌঁছে গেছে।');
+                if (parseInt(localStorage.getItem('adsWatched') || '0', 10) >= DAILY_ADS_LIMIT) {
+                    if (tg?.showAlert) {
+                        tg.showAlert('আপনার দৈনিক বিজ্ঞাপনের সীমা পৌঁছে গেছে।');
+                    } else {
+                        alert('আপনার দৈনিক বিজ্ঞাপনের সীমা পৌঁছে গেছে।');
+                    }
                     return;
                 }
 
                 watchAdBtn.disabled = true;
 
-                // --- অ্যাড নেটওয়ার্কের কোড কল করার জায়গা (দ্বিতীয় অংশ) ---
-                // ======================================================================
-                // এখানে আপনার অ্যাড নেটওয়ার্কের দেওয়া ফাংশনটি কল করতে হবে।
-                // নিচের 'show_9702412()' লাইনটি একটি উদাহরণ।
-                // ======================================================================
-                if (typeof show_9702412 === 'function') {
-                    show_9702412().then(() => {
-                        let earnings = parseFloat(localStorage.getItem('earnings')) + AD_REWARD;
-                        let currentAdsWatched = parseInt(localStorage.getItem('adsWatched')) + 1;
+                if (typeof show_12203483 === 'function') {
+                    show_12203483('pop').then(() => {
+                        let earnings = parseFloat(localStorage.getItem('earnings') || '0') + AD_REWARD;
+                        let currentAdsWatched = parseInt(localStorage.getItem('adsWatched') || '0', 10) + 1;
                         
                         localStorage.setItem('earnings', earnings.toString());
                         localStorage.setItem('adsWatched', currentAdsWatched.toString());
                         
-                        tg.showAlert(`বিজ্ঞাপনটি দেখার জন্য আপনি BDT ${AD_REWARD.toFixed(2)} পেয়েছেন!`);
-                    }).catch(() => {
-                        tg.showAlert('বিজ্ঞাপনটি দেখাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+                        const msg = `বিজ্ঞাপনটি দেখার জন্য আপনি BDT ${AD_REWARD.toFixed(2)} পেয়েছেন!`;
+                        if (tg?.showAlert) {
+                            tg.showAlert(msg);
+                        } else {
+                            alert(msg);
+                        }
+                    }).catch((e) => {
+                        console.error('Ad playback error:', e);
+                        const errMsg = 'বিজ্ঞাপনটি দেখাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+                        if (tg?.showAlert) {
+                            tg.showAlert(errMsg);
+                        } else {
+                            alert(errMsg);
+                        }
                     }).finally(() => {
                         updateUI();
                     });
                 } else {
-                    // Fallback for testing in browser without Telegram
-                    let earnings = parseFloat(localStorage.getItem('earnings')) + AD_REWARD;
-                    let currentAdsWatched = parseInt(localStorage.getItem('adsWatched')) + 1;
+                    // Fallback for testing in browser without SDK or if ad-blocker is enabled
+                    let earnings = parseFloat(localStorage.getItem('earnings') || '0') + AD_REWARD;
+                    let currentAdsWatched = parseInt(localStorage.getItem('adsWatched') || '0', 10) + 1;
                     localStorage.setItem('earnings', earnings.toString());
                     localStorage.setItem('adsWatched', currentAdsWatched.toString());
                     alert(`(Test Mode) You earned BDT ${AD_REWARD.toFixed(2)}!`);
@@ -624,23 +646,36 @@
                 e.preventDefault();
                 const amount = parseFloat(document.getElementById('withdraw-amount').value);
                 
-                tg.showConfirm(`আপনি কি আপনার উইথড্র অনুরোধ জমা দিতে চান?`, (confirmed) => {
+                const handleConfirm = (confirmed) => {
                     if (confirmed) {
-                        let newEarnings = parseFloat(localStorage.getItem('earnings')) - amount;
+                        let newEarnings = parseFloat(localStorage.getItem('earnings') || '0') - amount;
                         localStorage.setItem('earnings', newEarnings.toString());
                         
-                        tg.sendData(JSON.stringify({ 
-                            type: 'withdrawal', 
-                            amount: amount, 
-                            method: document.getElementById('withdraw-method').value,
-                            account: document.getElementById('account-number').value
-                        }));
+                        if (tg?.sendData) {
+                            tg.sendData(JSON.stringify({ 
+                                type: 'withdrawal', 
+                                amount: amount, 
+                                method: document.getElementById('withdraw-method').value,
+                                account: document.getElementById('account-number').value
+                            }));
+                        }
                         
                         withdrawForm.reset();
                         updateUI();
-                        tg.showAlert('আপনার উইথড্র অনুরোধ সফলভাবে জমা হয়েছে।');
+                        if (tg?.showAlert) {
+                            tg.showAlert('আপনার উইথড্র অনুরোধ সফলভাবে জমা হয়েছে।');
+                        } else {
+                            alert('আপনার উইথড্র অনুরোধ সফলভাবে জমা হয়েছে।');
+                        }
                     }
-                });
+                };
+
+                if (tg?.showConfirm) {
+                    tg.showConfirm(`আপনি কি আপনার উইথড্র অনুরোধ জমা দিতে চান?`, handleConfirm);
+                } else {
+                    const confirmed = confirm(`আপনি কি আপনার উইথড্র অনুরোধ জমা দিতে চান?`);
+                    handleConfirm(confirmed);
+                }
             });
 
             updateUI();
